@@ -1,0 +1,77 @@
+#!/bin/bash
+
+# Setup for 92 character wide terminal
+DateColumn=39 # Default is 27 for 80 character line, 34 for 92 character line
+TimeColumn=66 # Default is 49 for   "   "   "   "    61 "   "   "   "
+
+#--------- Weather -------------------------------------------------------------
+
+readarray weather < <(curl wttr.in/?0 --silent --max-time 3)
+# Timeout #. Increase if using a slower connection--------^
+# Add your location to improve accuracy, instead of using your IP's location.
+# Visit https://wttr.in/:help or run "curl wttr.in/:help" for more info.
+
+if [[ "${#weather[@]}" -gt 0 ]]; then
+    echo "${weather[@]}"
+else
+    echo "+============================+"
+    echo "|                            |"
+    echo "|    Weather information     |"
+    echo "|        unavailable.        |"
+    echo "|   Please try again later.  |"
+    echo "|                            |"
+    echo "+============================+"
+    echo " "
+fi
+
+#--------- Calendar -------------------------------------------------------------
+
+# Function to add color to stdout.
+# The original function can be found with an explanation here: https://stackoverflow.com/a/16178979
+cal_color()(set -o pipefail;"$@"|sed $'s,.*,\e[32m&\e[m,')>&1
+# Adjust the color code here-------------------^^
+# Colors: 00=bright white, 31=red, 32=green, 33=yellow, 34=blue, 35=purple, 36=cyan, 37=white
+
+readarray calendar < <(cal -s --color=always)
+
+tput sc # Save cursor position
+
+i=0
+while [ $((++i)) -lt 9 ]; do tput cuu1; done # Move up 8 lines
+
+for line in "${calendar[@]}"; do
+    tput cuf $DateColumn
+    cal_color printf "%s" "$line"
+done
+
+tput rc # Restore saved cursor position.
+
+#-------- TIME --------------------------------------------------------------
+
+Time="$(date +%R)"
+
+time_color()(set -o pipefail;"$@"|sed $'s,.*,\e[01;36m&\e[m,')>&1
+# Adjust the color code here-----------------------^^
+# Colors: 00=bright white, 31=red, 32=green, 33=yellow, 34=blue, 35=purple, 36=cyan, 37=white
+
+tput sc
+
+i=0
+while [ $((++i)) -lt 8 ]; do tput cuu1; done # Move up 7 lines
+
+if hash toilet 2>/dev/null; then # Do we have the toilet package?
+    readarray time < <(echo " $Time " | toilet -f future --filter border)
+elif hash figlet 2>/dev/null; then # Do we have the figlet package?
+    readarray time < <(echo "$Time" | figlet)
+else # else use standard font
+    readarray time < <(echo "$Time")
+fi
+
+for line in "${time[@]}"; do
+    tput cuf $TimeColumn
+    time_color printf "%s" "$line"
+done
+
+tput rc
+
+exit 0
